@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and roles.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "phoneNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "role"]
+    },
+    "Reservation": {
+      "title": "Service Reservation",
+      "description": "Booking details for personal color or tarot services.",
+      "type": "object",
+      "properties": {
+        "reservationId": { "type": "string" },
+        "userId": { "type": "string" },
+        "serviceType": { "type": "string", "enum": ["personal_color", "tarot", "integrated_package"] },
+        "consultantId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "timeSlot": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed"] },
+        "totalPrice": { "type": "number" },
+        "notes": { "type": "string" },
+        "diagnosisResult": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "serviceType", "date", "timeSlot", "status"]
+    },
+    "Consultant": {
+      "title": "Consultant",
+      "description": "Service providers information.",
+      "type": "object",
+      "properties": {
+        "consultantId": { "type": "string" },
+        "name": { "type": "string" },
+        "specialties": { "type": "array", "items": { "type": "string" } },
+        "bio": { "type": "string" },
+        "isAvailable": { "type": "boolean" }
+      },
+      "required": ["consultantId", "name"]
+    },
+    "Review": {
+      "title": "Customer Review",
+      "description": "Reviews for services provided.",
+      "type": "object",
+      "properties": {
+        "reviewId": { "type": "string" },
+        "userId": { "type": "string" },
+        "reservationId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "reservationId", "rating"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles."
+    },
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Service bookings."
+    },
+    "/consultants/{consultantId}": {
+      "schema": "Consultant",
+      "description": "Details of available consultants."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Service reviews."
+    }
+  }
+}

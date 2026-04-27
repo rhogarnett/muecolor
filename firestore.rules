@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isAdmin() { return isSignedIn() && getUserData().role == 'admin'; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // User Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['userId', 'email', 'role', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.email is string &&
+             data.role in ['user', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    // Reservation Validation
+    function isValidReservation(data) {
+      return data.keys().hasAll(['userId', 'serviceType', 'date', 'timeSlot', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.serviceType in ['personal_color', 'tarot', 'integrated_package'] &&
+             data.date is string &&
+             data.timeSlot is string &&
+             data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
+             data.createdAt is timestamp;
+    }
+
+    // Review Validation
+    function isValidReview(data) {
+      return data.keys().hasAll(['userId', 'reservationId', 'rating', 'comment', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() <= 1000;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidUser(incoming());
+      allow update: if (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'phoneNumber'])) || isAdmin();
+    }
+
+    match /reservations/{reservationId} {
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isEmailVerified() && isValidReservation(incoming());
+      allow update: if isAdmin() || (isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'cancelled');
+    }
+
+    match /consultants/{consultantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isEmailVerified() && isValidReview(incoming());
+      allow update, delete: if isAdmin() || (isOwner(existing().userId) && isSignedIn());
+    }
+  }
+}
